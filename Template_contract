@@ -1,0 +1,84 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract MultiUtilityContract {
+    
+    // Struct cho sản phẩm
+    struct Product {
+        uint id;
+        string name;
+        uint price;
+        address owner;
+    }
+
+    // Danh sách sản phẩm
+    Product[] public products;
+    uint public nextProductId;
+
+    // Sự kiện
+    event ProductCreated(uint productId, string name, uint price, address owner);
+    event VoteCasted(address voter, uint productId, uint votes);
+    
+    // Quản lý token
+    mapping(address => uint256) public balances;
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    
+    // Quản lý bỏ phiếu
+    mapping(uint => mapping(address => bool)) public votes;
+    mapping(uint => uint) public productVotes;
+    
+    // Khởi tạo hợp đồng
+    constructor() {
+        nextProductId = 1;
+    }
+    
+    // Tạo sản phẩm mới
+    function createProduct(string memory name, uint price) public {
+        products.push(Product(nextProductId, name, price, msg.sender));
+        emit ProductCreated(nextProductId, name, price, msg.sender);
+        nextProductId++;
+    }
+    
+    // Lấy thông tin sản phẩm
+    function getProduct(uint productId) public view returns (uint, string memory, uint, address) {
+        for (uint i = 0; i < products.length; i++) {
+            if (products[i].id == productId) {
+                return (products[i].id, products[i].name, products[i].price, products[i].owner);
+            }
+        }
+        revert("Product not found");
+    }
+    
+    // Chuyển token
+    function transfer(address to, uint256 amount) public {
+        require(balances[msg.sender] >= amount, "Insufficient balance");
+        balances[msg.sender] -= amount;
+        balances[to] += amount;
+        emit Transfer(msg.sender, to, amount);
+    }
+    
+    // Bỏ phiếu cho sản phẩm
+    function voteProduct(uint productId) public {
+        require(!votes[productId][msg.sender], "Already voted for this product");
+        votes[productId][msg.sender] = true;
+        productVotes[productId]++;
+        emit VoteCasted(msg.sender, productId, productVotes[productId]);
+    }
+    
+    // Lấy số phiếu của sản phẩm
+    function getProductVotes(uint productId) public view returns (uint) {
+        return productVotes[productId];
+    }
+    
+    // Nạp token vào hợp đồng
+    function deposit() public payable {
+        balances[msg.sender] += msg.value;
+    }
+    
+    // Rút token khỏi hợp đồng
+    function withdraw(uint256 amount) public {
+        require(balances[msg.sender] >= amount, "Insufficient balance");
+        balances[msg.sender] -= amount;
+        payable(msg.sender).transfer(amount);
+    }
+}
